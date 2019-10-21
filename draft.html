@@ -130,16 +130,16 @@ dt-article figcaption b {
 
   <meta name="theme-color" content="#ffffff" />
 
-
   <!-- Global site tag (gtag.js) - Google Analytics -->
-  <!--<script async src="https://www.googletagmanager.com/gtag/js?id=UA-141682504-1"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-150458464-1"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
 
-    gtag('config', 'UA-141682504-1');
-  </script>-->
+    gtag('config', 'UA-150458464-1');
+  </script>
+
   <!-- SEO -->
   <meta property="og:title" content="Learning to Predict Without Looking Ahead" />
   <meta property="og:type" content="article" />
@@ -169,7 +169,9 @@ dt-article figcaption b {
 <div style="text-align: center;">
 <video class="b-lazy" data-src="assets/mp4/learncartpole5.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;" ></video>
 <table style="width: 100%;" cellspacing="0" cellpadding="0"><tr>
-<td width="50%"><figcaption style="text-align: center;">Our agent is given only infrequent observations of its environment, and must learn a world model to fill in the observation gaps.<br/>The colorless cartpole represents the predicted observations seen by the policy.</figcaption></td>
+<td width="50%"><figcaption style="text-align: center;">
+Our agent is given only infrequent observations of its environment, and must learn a world model (the colorless cartpole) to fill in the observation gaps.
+</figcaption></td>
 </tr></table>
 
 </div>
@@ -210,12 +212,31 @@ dt-article figcaption b {
 <p>Much of model-based reinforcement learning involves learning a model of an agent's world, and training an agent to leverage this model to perform a task more efficiently. While these models are demonstrably useful for agents, every naturally occurring model of the world of which we are aware--e.g., a brain--arose as the byproduct of competing evolutionary pressures for survival, not minimization of a supervised forward-predictive loss via gradient descent.  That useful models can arise out of the messy and slow optimization process of evolution suggests that forward-predictive modeling can arise as a side-effect of optimization under the right circumstances. Crucially, this optimization process need not explicitly be a forward-predictive loss. In this work, we introduce a modification to traditional reinforcement learning which we call <em>observational dropout</em>, whereby we limit the agents ability to observe the real environment at each timestep. In doing so, we can coerce an agent into <em>learning</em> a world model to fill in the observation gaps during reinforcement learning. We show that the emerged world model, while not explicitly trained to predict the future, can help the agent learn key skills required to perform well in its environment.</p>
 <hr>
 <h2>Introduction</h2>
+<p>Much of the motivation of model-based reinforcement learning (RL) derives from the potential utility learned models for downstream tasks, like prediction <dt-cite key="doll2012ubiquity,finn2016unsupervised"></dt-cite>, planning <dt-cite key="allen1983planning,thrun1991planning,oh2015action,lenz2015deepmpc,nagabandi2018neural,nagabandi2018learning"></dt-cite>, and counterfactual reasoning <dt-cite key="buesing2018woulda,kaiser2019model"></dt-cite>. Whether such models are learned from data, or created from domain knowledge, there's an implicit assumption that an agent's <em>world model</em> <dt-cite key="werbos1987,schmidhuber1990making,ha2018world"></dt-cite> is a forward model for predicting future states. While a <em>perfect</em> forward model will undoubtedly deliver great utility, they are difficult to create, thus much of the research has been focused on either dealing with uncertainties of forward models <dt-cite key="deisenroth2011pilco,gal2016improving,ha2018world"></dt-cite>, or improving their prediction accuracy <dt-cite key="hafner2018learning,kaiser2019model"></dt-cite>. While progress has been made with current approaches, it is not clear that models trained explicitly to perform forward prediction is the only possible or even desirable solution.</p>
+<div style="text-align: center;">
+<video class="b-lazy" data-src="assets/mp4/learncartpole5.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;" ></video>
+<img class="b-lazy" src=data:image/png;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/png/paper_figure_1.png" style="display: block; margin: auto; width: 100%;"/>
+<figcaption style="text-align: left;">
+Our agent is given only infrequent observations of its environment (e.g., frames 1, 8), and must learn a world model to fill in the observation gaps. The colorless cartpole represents the predicted observations seen by the policy. Under such constraints, we show that forward predictive-like world models can emerge so that the policy can still perform well on a swing-up cartpole environment.<br/>
+</figcaption>
+</div>
+<p>We hypothesize that explicit forward prediction is not required to learn useful models of the world, and that prediction may arise as an emergent property if it is useful for an agent to perform its task. To encourage prediction to emerge, we introduce a constraint to our agent: at each timestep, the agent is only allowed to observe its environment with some probability <span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>p</mi></mrow><annotation encoding="application/x-tex">p</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.43056em;"></span><span class="strut bottom" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="base textstyle uncramped"><span class="mord mathit">p</span></span></span></span>. To cope with this constraint, we give our agent an internal model that takes as input both the previous observation and action, and it generates a new observation as an output. Crucially, the input observation to the model will be the ground truth only with probability <span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>p</mi></mrow><annotation encoding="application/x-tex">p</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.43056em;"></span><span class="strut bottom" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="base textstyle uncramped"><span class="mord mathit">p</span></span></span></span>, while the input observation will be its previously generated one with probability <span class="katex"><span class="katex-mathml"><math><semantics><mrow><mn>1</mn><mo>−</mo><mi>p</mi></mrow><annotation encoding="application/x-tex">1-p</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.64444em;"></span><span class="strut bottom" style="height:0.8388800000000001em;vertical-align:-0.19444em;"></span><span class="base textstyle uncramped"><span class="mord mathrm">1</span><span class="mbin">−</span><span class="mord mathit">p</span></span></span></span>. The agent's policy will act on this internal observation without knowing whether it is real, or generated by its internal model. In this work, we investigate to what extent world models trained with policy gradients behave like forward predictive models, by restricting the agent's ability to observe its environment.</p>
+<div style="text-align: center;">
+<video class="b-lazy" data-src="assets/mp4/learncarracing.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;" ></video>
+<figcaption style="text-align: left;">
+<b>Training an agent to drive a car blindfolded, but occasionally letting it see.</b>
+<br/>The above animation illustrates the world model’s prediction on the right versus the ground truth pixel observation on the left. Frames that have a red border frames indicate actual observations from the environment the agent is allowed to see. The policy is acting on the observations (real or generated) on the right.<br/>
+</figcaption>
+</div>
+<p>By jointly learning both the policy and model to perform well on the given task, we can directly optimize the model without ever explicitly training it for forward prediction. This allows the model to focus on generating any “predictions” that are useful for the policy to perform well on the task, even if they are not realistic. The models that emerge under our constraints capture the essence of what the agent needs to see from its world. We conduct various experiments to show, under certain conditions, that the models learn to behave like imperfect forward predictors. We demonstrate that these models can be used to generate environments that do not follow the rules that govern the actual environment, but nonetheless can be used to teach the agent important skills needed to perform its task in the actual environment. We also examine the role of inductive biases in the world model, and show that the architecture of the model plays a role in not only its usefulness, but also its interpretability.</p>
+<hr>
+<h2>Discussion and Future Work</h2>
 <p>Remember to cite REINFORCE paper <dt-cite key="williams1992simple"></dt-cite>.</p>
-<p><em>If you would like to discuss any issues or give feedback, please visit the <a href="https://github.com/weightagnostic/weightagnostic.github.io/issues">GitHub</a> repository of this page for more information.</em></p>
+<p><em>If you would like to discuss any issues or give feedback, please visit the <a href="https://github.com/learningtopredict/learningtopredict.github.io/issues">GitHub</a> repository of this page for more information.</em></p>
 </dt-article>
 <dt-appendix>
 <h2>Acknowledgements</h2>
-<p>Write something here.</p>
+<p>Add list of people to acknowledge here.</p>
 <p>The experiments in this work were performed on 96-core CPU Linux virtual machines provided by <a href="https://cloud.google.com/">Google Cloud Platform</a>.</p>
 <p>This article was prepared using the <a href="https://distill.pub">Distill</a> <a href="https://github.com/distillpub/template">template</a>. Interactive demos were built with <a href="https://p5js.org">p5.js</a>.</p>
 <p>Any errors here are our own and do not reflect opinions of our proofreaders and colleagues. If you see mistakes or want to suggest changes, feel free to contribute feedback by participating in the discussion <a href="https://github.com/learningtopredict/learningtopredict.github.io/issues">forum</a> for this article.</p>
@@ -224,7 +245,7 @@ dt-article figcaption b {
 <pre class="citation short">C. Daniel Freeman and Luke Metz and David Ha, "Learning to Predict Without Looking Ahead: World Models Without Forward Prediction", 2019.</pre>
 <p>BibTeX citation</p>
 <pre class="citation long">@article{learningtopredict2019,
-  author = {Freeman, C. Daniel and Luke Metz and David Ha},
+  author = {Freeman, C Daniel and Luke Metz and David Ha},
   title  = {Learning to Predict Without Looking Ahead: World Models Without Forward Prediction},
   eprint = {arXiv:XXXX.XXXXX},
   url    = {https://learningtopredict.github.io},
@@ -234,13 +255,229 @@ dt-article figcaption b {
 <h2>Open Source Code</h2>
 <p>Please see our <a href="https://github.com/google/brain-tokyo-workshop/">repo</a> for details about the code release.</p>
 <h2>Reuse</h2>
-<p>Diagrams and text are licensed under Creative Commons Attribution <a href="https://creativecommons.org/licenses/by/4.0/">CC-BY 4.0</a> with the <a href="https://github.com/weightagnostic/weightagnostic.github.io">source available on GitHub</a>, unless noted otherwise. The figures that have been reused from other sources don’t fall under this license and can be recognized by the citations in their caption.</p>
+<p>Diagrams and text are licensed under Creative Commons Attribution <a href="https://creativecommons.org/licenses/by/4.0/">CC-BY 4.0</a> with the <a href="https://github.com/learningtopredict/learningtopredict.github.io">source available on GitHub</a>, unless noted otherwise. The figures that have been reused from other sources don’t fall under this license and can be recognized by the citations in their caption.</p>
 <h2>Supplementary Materials</h2>
 <p>For further discussion about the implementation details of the experiments, and results for multiple independent runs of the search algorithms, please refer to the Supplementary Materials section in the <a href="https://arxiv.org/abs/XXXX.XXXXX">pdf</a> version of this article.</p>
 </dt-appendix>
 </dt-appendix>
 </body>
 <script type="text/bibliography">
+@inproceedings{silver2017predictron,
+  title={The predictron: End-to-end learning and planning},
+  author={Silver, David and van Hasselt, Hado and Hessel, Matteo and Schaul, Tom and Guez, Arthur and Harley, Tim and Dulac-Arnold, Gabriel and Reichert, David and Rabinowitz, Neil and Barreto, Andre and others},
+  booktitle={Proceedings of the 34th International Conference on Machine Learning-Volume 70},
+  pages={3191--3199},
+  year={2017},
+  organization={JMLR.org},
+  url={https://arxiv.org/abs/1612.08810},
+}
+
+@book{adams1995hitchhiker,
+  title={The Hitchhiker's Guide to the Galaxy},
+  author={Adams, D.},
+  isbn={9781417642595},
+  url={http://books.google.com/books?id=W-xMPgAACAAJ},
+  year={1995},
+  publisher={San Val}
+}
+
+
+@article{hafner2018learning,
+  title={Learning Latent Dynamics for Planning from Pixels},
+  author={Hafner, Danijar and Lillicrap, Timothy and Fischer, Ian and Villegas, Ruben and Ha, David and Lee, Honglak and Davidson, James},
+  journal={arXiv preprint arXiv:1811.04551},
+  year={2018},
+  url={https://planetrl.github.io},
+}
+
+@article{kaiser2019model,
+  title={Model-Based Reinforcement Learning for Atari},
+  author={Kaiser, Lukasz and Babaeizadeh, Mohammad and Milos, Piotr and Osinski, Blazej and Campbell, Roy H and Czechowski, Konrad and Erhan, Dumitru and Finn, Chelsea and Kozakowski, Piotr and Levine, Sergey and others},
+  journal={arXiv preprint arXiv:1903.00374},
+  url={https://arxiv.org/abs/1903.00374},
+  year={2019}
+}
+
+@article{du2019implicit,
+  title={Implicit Generation and Generalization in Energy-Based Models},
+  author={Du, Yilun and Mordatch, Igor},
+  journal={arXiv preprint arXiv:1903.08689},
+  year={2019},
+  url={https://arxiv.org/abs/1903.08689},
+}
+
+@inproceedings{deisenroth2011pilco,
+  title={PILCO: A model-based and data-efficient approach to policy search},
+  author={Deisenroth, Marc and Rasmussen, Carl E},
+  booktitle={Proceedings of the 28th International Conference on machine learning (ICML-11)},
+  pages={465--472},
+  year={2011},
+  url={http://mlg.eng.cam.ac.uk/pub/pdf/DeiRas11.pdf},
+}
+
+@inproceedings{gal2016improving,
+  title={Improving PILCO with Bayesian neural network dynamics models},
+  author={Gal, Yarin and McAllister, Rowan and Rasmussen, Carl Edward},
+  booktitle={Data-Efficient Machine Learning workshop, ICML},
+  volume={4},
+  year={2016},
+  url={http://mlg.eng.cam.ac.uk/yarin/PDFs/DeepPILCO.pdf},
+}
+
+@misc{deepPILCOgithub,
+      author = {Zuo, Xingdong},
+      title = {PyTorch implementation of Improving PILCO with Bayesian neural network dynamics models},
+      year = {2018},
+      publisher = {GitHub},
+      journal = {GitHub repository},
+      url = {https://github.com/zuoxingdong/DeepPILCO},
+    }
+
+@article{tedrake2009underactuated,
+  title={Underactuated Robotics: Learning, Planning, and Control for Efficient and Agile Machines: Course Notes for MIT 6.832},
+  author={Tedrake, Russ},
+  journal={Working draft edition},
+  volume={3},
+  year={2009},
+  publisher={Citeseer},
+  url={http://underactuated.mit.edu/underactuated.html},
+}
+
+@inproceedings{watter2015embed,
+  title={Embed to control: A locally linear latent dynamics model for control from raw images},
+  author={Watter, Manuel and Springenberg, Jost and Boedecker, Joschka and Riedmiller, Martin},
+  booktitle={Advances in neural information processing systems},
+  pages={2746--2754},
+  year={2015},
+  url={https://arxiv.org/abs/1506.07365},
+}
+
+@inproceedings{werbos1987,
+  title={Learning how the world works: Specifications for predictive networks in robots and brains},
+  author={Werbos, Paul J},
+  booktitle={Proceedings of IEEE International Conference on Systems, Man and Cybernetics, NY},
+  year={1987}
+}
+
+@article{schmidhuber1990making,
+  title={Making the world differentiable: On using self-supervised fully recurrent neural networks for dynamic reinforcement learning and planning in non-stationary environments},
+  author={Schmidhuber, Juergen},
+  year={1990},
+  journal={Technical Report},
+  url={http://people.idsia.ch/~juergen/FKI-126-90_(revised)bw_ocr.pdf},
+}
+
+@article{banino2018vector,
+  title={Vector-based navigation using grid-like representations in artificial agents},
+  author={Banino, Andrea and Barry, Caswell and Uria, Benigno and Blundell, Charles and Lillicrap, Timothy and Mirowski, Piotr and Pritzel, Alexander and Chadwick, Martin J and Degris, Thomas and Modayil, Joseph and others},
+  journal={Nature},
+  volume={557},
+  number={7705},
+  pages={429},
+  year={2018},
+  publisher={Nature Publishing Group},
+  url={https://www.nature.com/articles/s41586-018-0102-6.epdf},
+}
+
+@article{cueva2018emergence,
+  title={Emergence of grid-like representations by training recurrent neural networks to perform spatial localization},
+  author={Cueva, Christopher J and Wei, Xue-Xin},
+  journal={arXiv preprint arXiv:1803.07770},
+  year={2018},
+  url={https://arxiv.org/abs/1803.07770},
+}
+
+@article{srivastava2014dropout,
+  title={Dropout: a simple way to prevent neural networks from overfitting},
+  author={Srivastava, N and Hinton, G and Krizhevsky, A and Sutskever, I and Salakhutdinov, R},
+  journal={JMLR},
+  volume={15},
+  number={1},
+  pages={1929--1958},
+  year={2014},
+  publisher={JMLR.org},
+  url={http://jmlr.org/papers/volume15/srivastava14a.old/srivastava14a.pdf},
+}
+
+@incollection{ha2018world,
+  title = {Recurrent World Models Facilitate Policy Evolution},
+  author = {Ha, David and Schmidhuber, Juergen},
+  booktitle = {Advances in Neural Information Processing Systems 31},
+  publisher = {Curran Associates, Inc.},
+  pages = {2451--2463},
+  year = {2018},
+  url = {https://worldmodels.github.io/},
+}
+
+@inproceedings{risi2019,
+ author = {Risi, Sebastian and Stanley, Kenneth O.},
+ title = {Deep Neuroevolution of Recurrent and Discrete World Models},
+ booktitle = {Proceedings of the Genetic and Evolutionary Computation Conference},
+ series = {GECCO '19},
+ year = {2019},
+ isbn = {978-1-4503-6111-8},
+ location = {Prague, Czech Republic},
+ pages = {456--462},
+ numpages = {7},
+ url = {http://doi.acm.org/10.1145/3321707.3321817},
+ doi = {10.1145/3321707.3321817},
+ acmid = {3321817},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+}
+
+@inproceedings{marques2007sensorless,
+  title={Sensorless but not senseless: Prediction in evolutionary car racing},
+  author={Marques, Hugo and Togelius, Julian and Kogutowska, Magdalena and Holland, Owen and Lucas, Simon M},
+  booktitle={2007 IEEE Symposium on Artificial Life},
+  pages={370--377},
+  year={2007},
+  organization={IEEE},
+  url={http://julian.togelius.com/Marques2007Sensorless.pdf},
+}
+
+@article{gaier2019weight,
+  title={Weight Agnostic Neural Networks},
+  author={Gaier, Adam and Ha, David},
+  journal={arXiv preprint arXiv:1906.04358},
+  year={2019},
+  url={https://weightagnostic.github.io},
+}
+
+@article{denton2018stochastic,
+  title={Stochastic video generation with a learned prior},
+  author={Denton, Emily and Fergus, Rob},
+  journal={arXiv preprint arXiv:1802.07687},
+  year={2018},
+  url={https://arxiv.org/abs/1802.07687},
+}
+
+@inproceedings{finn2016unsupervised,
+  title={Unsupervised learning for physical interaction through video prediction},
+  author={Finn, Chelsea and Goodfellow, Ian and Levine, Sergey},
+  booktitle={Advances in neural information processing systems},
+  pages={64--72},
+  year={2016},
+  url={https://arxiv.org/abs/1605.07157},
+}
+
+@article{kumar2019videoflow,
+  title={VideoFlow: A Flow-Based Generative Model for Video},
+  author={Kumar, M and Babaeizadeh, M and Erhan, D and Finn, C and Levine, S and Dinh, L and Kingma, D},
+  journal={arXiv preprint arXiv:1903.01434},
+  year={2019},
+  url={https://arxiv.org/abs/1903.01434},
+}
+
+@inproceedings{mnih2016asynchronous,
+  title={Asynchronous methods for deep reinforcement learning},
+  author={Mnih, Volodymyr and Badia, Adria Puigdomenech and Mirza, Mehdi and Graves, Alex and Lillicrap, Timothy and Harley, Tim and Silver, David and Kavukcuoglu, Koray},
+  booktitle={International conference on machine learning},
+  pages={1928--1937},
+  year={2016},
+  url={https://arxiv.org/abs/1602.01783},
+}
+
 @article{williams1992simple,
   title={Simple statistical gradient-following algorithms for connectionist reinforcement learning},
   author={Williams, Ronald J},
@@ -249,8 +486,462 @@ dt-article figcaption b {
   number={3-4},
   pages={229--256},
   year={1992},
+  publisher={Springer},
   url={http://www-anw.cs.umass.edu/~barto/courses/cs687/williams92simple.pdf},
+}
+% proof that williams1992simple can perform really well:
+@article{salimans2017evolution,
+  title={Evolution Strategies as a Scalable Alternative to Reinforcement Learning},
+ author = {Salimans, T. and Ho, J. and Chen, X. and Sidor, S. and Sutskever, I.},
+journal={Preprint arXiv:1703.03864},
+  year={2017},
+  url={https://arxiv.org/abs/1703.03864},
+}
+@article{such2017deep,
+  title={Deep neuroevolution: Genetic algorithms are a competitive alternative for training deep neural networks for reinforcement learning},
+  author={Such, Felipe Petroski and Madhavan, Vashisht and Conti, Edoardo and Lehman, Joel and Stanley, Kenneth O and Clune, Jeff},
+  journal={arXiv preprint arXiv:1712.06567},
+  year={2017},
+  url={https://arxiv.org/abs/1712.06567},
+}
+@article{ha2017evolving,
+  title={Evolving Stable Strategies},
+  author = {Ha, D.},
+  year={2017},
+  url="http://blog.otoro.net/2017/11/12/evolving-stable-strategies/",
+}
+@article{ha2018designrl,
+  author = {David Ha},
+  title  = {Reinforcement Learning for Improving Agent Design},
+  journal = {arXiv:1810.03779},
+  url    = {https://designrl.github.io},
+  year   = {2018}
+}
+
+@article{oord2018representation,
+  title={Representation learning with contrastive predictive coding},
+  author={Oord, Aaron van den and Li, Yazhe and Vinyals, Oriol},
+  journal={arXiv preprint arXiv:1807.03748},
+  year={2018},
+  url={https://arxiv.org/abs/1807.03748},
+}
+
+@article{pillonetto2014kernel,
+  title={Kernel methods in system identification, machine learning and function estimation: A survey},
+  author={Pillonetto, Gianluigi and Dinuzzo, Francesco and Chen, Tianshi and De Nicolao, Giuseppe and Ljung, Lennart},
+  journal={Automatica},
+  volume={50},
+  number={3},
+  pages={657--682},
+  year={2014},
+  publisher={Elsevier},
+  url={http://www.diva-portal.org/smash/get/diva2:716642/FULLTEXT01.pdf},
+}
+
+@article{hinton2006reducing,
+  title={Reducing the dimensionality of data with neural networks},
+  author={Hinton, Geoffrey E and Salakhutdinov, Ruslan R},
+  journal={science},
+  volume={313},
+  number={5786},
+  pages={504--507},
+  year={2006},
+  publisher={American Association for the Advancement of Science},
+  url={https://bit.ly/2Bvc6KM},
+}
+
+@article{higgins2016early,
+  title={Early visual concept learning with unsupervised deep learning},
+  author={Higgins, Irina and Matthey, Loic and Glorot, Xavier and Pal, Arka and Uria, Benigno and Blundell, Charles and Mohamed, Shakir and Lerchner, Alexander},
+  journal={arXiv preprint arXiv:1606.05579},
+  year={2016},
+  url={https://arxiv.org/abs/1606.05579},
+}
+
+@article{schulman2017proximal,
+  title={Proximal policy optimization algorithms},
+  author={Schulman, John and Wolski, Filip and Dhariwal, Prafulla and Radford, Alec and Klimov, Oleg},
+  journal={arXiv preprint arXiv:1707.06347},
+  year={2017},
+  url={https://arxiv.org/abs/1707.06347},
+}
+
+@inproceedings{allen1983planning,
+  title={Planning using a temporal world model},
+  author={Allen, James F and Koomen, Johannes A},
+  booktitle={Proceedings of the Eighth international joint conference on Artificial intelligence-Volume 2},
+  pages={741--747},
+  year={1983},
+  organization={Morgan Kaufmann Publishers Inc.},
+  url={https://www.ijcai.org/Proceedings/83-2/Papers/036.pdf},
+}
+
+@inproceedings{thrun1991planning,
+  title={Planning with an adaptive world model},
+  author={Thrun, Sebastian and Moller, Knut and Linden, Alexander},
+  booktitle={Advances in neural information processing systems},
+  pages={450--456},
+  year={1991},
+  url={https://papers.nips.cc/paper/365-planning-with-an-adaptive-world-model.pdf},
+}
+
+@article{doll2012ubiquity,
+  title={The ubiquity of model-based reinforcement learning},
+  author={Doll, Bradley B and Simon, Dylan A and Daw, Nathaniel D},
+  journal={Current opinion in neurobiology},
+  volume={22},
+  number={6},
+  pages={1075--1081},
+  year={2012},
+  publisher={Elsevier},
+  url={http://www.princeton.edu/~ndaw/dsd12.pdf},
+}
+
+@article{buesing2018woulda,
+  title={Woulda, coulda, shoulda: Counterfactually-guided policy search},
+  author={Buesing, Lars and Weber, Theophane and Zwols, Yori and Racaniere, Sebastien and Guez, Arthur and Lespiau, Jean-Baptiste and Heess, Nicolas},
+  journal={arXiv preprint arXiv:1811.06272},
+  year={2018},
+  url={https://arxiv.org/abs/1811.06272},
+}
+
+@article{grupencourse,
+title={CMPSCI Embedded Systems 503},
+author={Roderic A. Grupen},
+url={http://www-robotics.cs.umass.edu/~grupen/503/SLIDES/cart-pole.pdf},
+journal={Online},
+year={2018}
+}
+
+@article{carracing_v0,
+  author = {Oleg Klimov},
+  title = {CarRacing-v0},
+  year = 2016,
+  url = {https://gym.openai.com/envs/CarRacing-v0/},
+}
+
+@article{vae,
+  title={Auto-Encoding Variational Bayes},
+ author = {Kingma, D. and Welling, M.},
+journal={Preprint arXiv:1312.6114},
+  year={2013},
+  url={https://arxiv.org/abs/1312.6114},
+}
+@article{vae_dm,
+  title={Stochastic Backpropagation and Approximate Inference in Deep Generative Models},
+ author = {Rezende, D. and Mohamed, S. and Wierstra, D.},
+journal={Preprint arXiv:1401.4082},
+  year={2014},
+  url={https://arxiv.org/abs/1401.4082},
+}
+
+@inproceedings{talvitie2014model,
+  title={Model Regularization for Stable Sample Rollouts},
+  author={Talvitie, Erik},
+  booktitle={UAI},
+  pages={780--789},
+  year={2014},
+  url={http://auai.org/uai2014/proceedings/individuals/179.pdf},
+}
+
+@article{asadi2018lipschitz,
+  title={Lipschitz continuity in model-based reinforcement learning},
+  author={Asadi, Kavosh and Misra, Dipendra and Littman, Michael L},
+  journal={arXiv preprint arXiv:1804.07193},
+  year={2018},
+  url={https://arxiv.org/abs/1804.07193},
+}
+
+
+@article{le2011building,
+  title={Building high-level features using large scale unsupervised learning},
+  author={Le, Quoc V and Ranzato, Marc'Aurelio and Monga, Rajat and Devin, Matthieu and Chen, Kai and Corrado, Greg S and Dean, Jeff and Ng, Andrew Y},
+  journal={arXiv preprint arXiv:1112.6209},
+  year={2011},
+  url={https://arxiv.org/abs/1112.6209},
+}
+
+
+@inproceedings{noroozi2016unsupervised,
+  title={Unsupervised learning of visual representations by solving jigsaw puzzles},
+  author={Noroozi, Mehdi and Favaro, Paolo},
+  booktitle={European Conference on Computer Vision},
+  pages={69--84},
+  year={2016},
+  organization={Springer},
+  url={https://arxiv.org/abs/1603.09246},
+} 
+
+@inproceedings{sermanet2018time,
+  title={Time-contrastive networks: Self-supervised learning from video},
+  author={Sermanet, Pierre and Lynch, Corey and Chebotar, Yevgen and Hsu, Jasmine and Jang, Eric and Schaal, Stefan and Levine, Sergey},
+  booktitle={2018 IEEE International Conference on Robotics and Automation (ICRA)},
+  pages={1134--1141},
+  year={2018},
+  organization={IEEE},
+  url={https://arxiv.org/abs/1704.06888},
+}
+
+@article{higgins2018towards,
+  title={Towards a Definition of Disentangled Representations},
+  author={Higgins, Irina and Amos, David and Pfau, David and Racaniere, Sebastien and Matthey, Loic and Rezende, Danilo and Lerchner, Alexander},
+  journal={arXiv preprint arXiv:1812.02230},
+  year={2018},
+  url={https://arxiv.org/abs/1812.02230},
+} 
+
+@article{ebert2018visual,
+  title={Visual foresight: Model-based deep reinforcement learning for vision-based robotic control},
+  author={Ebert, Frederik and Finn, Chelsea and Dasari, Sudeep and Xie, Annie and Lee, Alex and Levine, Sergey},
+  journal={arXiv preprint arXiv:1812.00568},
+  year={2018},
+  url={https://arxiv.org/abs/1812.00568},
+} 
+
+@article{buesing2018learning,
+  title={Learning and querying fast generative models for reinforcement learning},
+  author={Buesing, Lars and Weber, Theophane and Racaniere, Sebastien and Eslami, SM and Rezende, Danilo and Reichert, David P and Viola, Fabio and Besse, Frederic and Gregor, Karol and Hassabis, Demis and others},
+  journal={arXiv preprint arXiv:1802.03006},
+  year={2018},
+  url={https://arxiv.org/abs/1802.03006},
+}
+
+@article{bengio2013representation,
+  title={Representation learning: A review and new perspectives},
+  author={Bengio, Yoshua and Courville, Aaron and Vincent, Pascal},
+  journal={IEEE transactions on pattern analysis and machine intelligence},
+  volume={35},
+  number={8},
+  pages={1798--1828},
+  year={2013},
+  publisher={IEEE},
+  url={https://arxiv.org/abs/1206.5538},
+}
+
+@article{kaelbling1996reinforcement,
+  title={Reinforcement learning: A survey},
+  author={Kaelbling, Leslie Pack and Littman, Michael L and Moore, Andrew W},
+  journal={Journal of artificial intelligence research},
+  volume={4},
+  pages={237--285},
+  year={1996},
+  url={https://arxiv.org/abs/cs/9605103},
+}
+
+@book{sutton2018reinforcement,
+  title={Reinforcement learning: An introduction},
+  author={Sutton, Richard S and Barto, Andrew G},
+  year={2018},
+  publisher={MIT press},
+  url={http://incompleteideas.net/book/the-book-2nd.html},
+}
+
+@book{sutton1998introduction,
+  title={Introduction to reinforcement learning},
+  author={Sutton, Richard S and Barto, Andrew G and others},
+  volume={135},
+  year={1998},
+  publisher={MIT press Cambridge},
+  url={https://dl.acm.org/citation.cfm?id=551283},
+}
+
+@article{mnih2015human,
+  title={Human-level control through deep reinforcement learning},
+  author={Mnih, Volodymyr and Kavukcuoglu, Koray and Silver, David and Rusu, Andrei A and Veness, Joel and Bellemare, Marc G and Graves, Alex and Riedmiller, Martin and Fidjeland, Andreas K and Ostrovski, Georg and others},
+  journal={Nature},
+  volume={518},
+  number={7540},
+  pages={529},
+  year={2015},
+  publisher={Nature Publishing Group}
+}
+
+@inproceedings{schulman2015trust,
+  title={Trust region policy optimization},
+  author={Schulman, John and Levine, Sergey and Abbeel, Pieter and Jordan, Michael and Moritz, Philipp},
+  booktitle={International Conference on Machine Learning},
+  pages={1889--1897},
+  year={2015},
+  url={https://arxiv.org/abs/1502.05477},
+}
+
+@inproceedings{nagabandi2018neural,
+  title={Neural network dynamics for model-based deep reinforcement learning with model-free fine-tuning},
+  author={Nagabandi, Anusha and Kahn, Gregory and Fearing, Ronald S and Levine, Sergey},
+  booktitle={2018 IEEE International Conference on Robotics and Automation (ICRA)},
+  pages={7559--7566},
+  year={2018},
+  organization={IEEE},
+  url={https://arxiv.org/abs/1708.02596},
+}
+
+@inproceedings{nagabandi2018learning,
+  title={Learning Image-Conditioned Dynamics Models for Control of Underactuated Legged Millirobots},
+  author={Nagabandi, Anusha and Yang, Guangzhao and Asmar, Thomas and Pandya, Ravi and Kahn, Gregory and Levine, Sergey and Fearing, Ronald S},
+  booktitle={2018 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+  pages={4606--4613},
+  year={2018},
+  organization={IEEE},
+  url={https://people.eecs.berkeley.edu/~ronf/PAPERS/anagabandi-iros18.pdf},
+}
+
+@inproceedings{lenz2015deepmpc,
+  title={DeepMPC: Learning deep latent features for model predictive control},
+  author={Lenz, Ian and Knepper, Ross A and Saxena, Ashutosh},
+  booktitle={Robotics: Science and Systems},
+  year={2015},
+  organization={Rome, Italy},
+  url={https://cs.stanford.edu/people/asaxena/papers/deepmpc_rss2015.pdf},
+}
+
+@inproceedings{oh2015action,
+  title={Action-conditional video prediction using deep networks in atari games},
+  author={Oh, Junhyuk and Guo, Xiaoxiao and Lee, Honglak and Lewis, Richard L and Singh, Satinder},
+  booktitle={Advances in neural information processing systems},
+  pages={2863--2871},
+  year={2015},
+  url={https://arxiv.org/abs/1507.08750},
+}
+
+
+@inproceedings{kalchbrenner2017video,
+  title={Video pixel networks},
+  author={Kalchbrenner, Nal and van den Oord, Aaron and Simonyan, Karen and Danihelka, Ivo and Vinyals, Oriol and Graves, Alex and Kavukcuoglu, Koray},
+  booktitle={Proceedings of the 34th International Conference on Machine Learning-Volume 70},
+  pages={1771--1779},
+  year={2017},
+  organization={JMLR.org},
+  url={https://arxiv.org/abs/1610.00527},
+}
+
+@article{patraucean2015spatio,
+  title={Spatio-temporal video autoencoder with differentiable memory},
+  author={Patraucean, Viorica and Handa, Ankur and Cipolla, Roberto},
+  journal={arXiv preprint arXiv:1511.06309},
+  year={2015},
+  url={https://arxiv.org/abs/1511.06309},
+}
+
+@article{srivastava2015unsupervised,
+  title={Unsupervised learning of video representations using lstms},
+  author={Srivastava, Nitish and Mansimov, Elman and Salakhutdinov, Ruslan},
+  journal={arXiv preprint arXiv:1502.04681},
+  year={2015},
+  url={https://arxiv.org/abs/1502.04681},
+}
+
+@article{bull1999model,
+  title={On model-based evolutionary computation},
+  author={Bull, Larry},
+  journal={Soft Computing},
+  volume={3},
+  number={2},
+  pages={76--82},
+  year={1999},
   publisher={Springer}
+}
+
+@article{mathieu2015deep,
+  title={Deep multi-scale video prediction beyond mean square error},
+  author={Mathieu, Michael and Couprie, Camille and LeCun, Yann},
+  journal={arXiv preprint arXiv:1511.05440},
+  year={2015},
+  url={https://arxiv.org/abs/1511.05440},
+}
+
+@inproceedings{wierstra2008natural,
+  title={Natural evolution strategies},
+  author={Wierstra, Daan and Schaul, Tom and Peters, Jan and Schmidhuber, Juergen},
+  booktitle={2008 IEEE Congress on Evolutionary Computation (IEEE World Congress on Computational Intelligence)},
+  pages={3381--3387},
+  year={2008},
+  organization={IEEE},
+  url={http://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf},
+}
+
+@book{holland1975adaptation,
+  title={Adaptation in natural and artificial systems: an introductory analysis with applications to biology, control, and artificial intelligence},
+  author={Holland, John Henry and others},
+  year={1975},
+  publisher={MIT press},
+  url={https://dl.acm.org/citation.cfm?id=531075},
+}
+
+@article{goldberg1988genetic,
+  title={Genetic algorithms and machine learning},
+  author={Goldberg, David E and Holland, John H},
+  journal={Machine learning},
+  volume={3},
+  number={2},
+  pages={95--99},
+  year={1988},
+  publisher={Springer},
+  url={https://dl.acm.org/citation.cfm?id=637947},
+} 
+
+
+@article{rechenberg1973evolutionsstrategie,
+  title={Evolutionsstrategie--Optimierung technisher Systeme nach Prinzipien der biologischen Evolution},
+  journal={Frommann-Holzboog},
+  author={Rechenberg, Ingo},
+  year={1973},
+  publisher={Frommann-Holzboog}
+}
+
+@article{hansen2003reducing,
+  title={Reducing the time complexity of the derandomized evolution strategy with covariance matrix adaptation (CMA-ES)},
+  author={Hansen, Nikolaus and Meuller, Sibylle D and Koumoutsakos, Petros},
+  journal={Evolutionary computation},
+  volume={11},
+  number={1},
+  pages={1--18},
+  year={2003},
+  publisher={MIT Press},
+  url={http://www.cmap.polytechnique.fr/~nikolaus.hansen/evco_11_1_1_0.pdf},
+}
+
+@article{bongard2006resilient,
+  title={Resilient machines through continuous self-modeling},
+  author={Bongard, Josh and Zykov, Victor and Lipson, Hod},
+  journal={Science},
+  volume={314},
+  number={5802},
+  pages={1118--1121},
+  year={2006},
+  publisher={American Association for the Advancement of Science},
+  url={https://bit.ly/2P2678d},
+}
+
+@article{lehman2018surprising,
+  title={The surprising creativity of digital evolution: A collection of anecdotes from the evolutionary computation and artificial life research communities},
+  author={Lehman, Joel and Clune, Jeff and Misevic, Dusan and Adami, Christoph and Altenberg, Lee and Beaulieu, Julie and Bentley, Peter J and Bernard, Samuel and Beslon, Guillaume and Bryson, David M and others},
+  journal={arXiv preprint arXiv:1803.03453},
+  year={2018},
+  url={https://arxiv.org/abs/1803.03453},
+}
+
+@book{schwefel1977numerische,
+  title={Numerische Optimierung von Computer-Modellen mittels der Evolutionsstrategie.(Teil 1, Kap. 1-5)},
+  author={Schwefel, H-P},
+  year={1977},
+  publisher={Birkhauser}
+}
+
+@inproceedings{amos2018differentiable,
+  title={Differentiable MPC for End-to-end Planning and Control},
+  author={Amos, Brandon and Jimenez, Ivan and Sacks, Jacob and Boots, Byron and Kolter, J Zico},
+  booktitle={Advances in Neural Information Processing Systems},
+  pages={8289--8300},
+  year={2018},
+  url={https://arxiv.org/abs/1810.13400},
+}
+
+@article{schmidhuber2015learning,
+  title={On learning to think: Algorithmic information theory for novel combinations of reinforcement learning controllers and recurrent neural world models},
+  author={Schmidhuber, J.},
+  journal={arXiv preprint arXiv:1511.09249},
+  year={2015},
+  url={https://arxiv.org/abs/1511.09249},
 }
 </script>
 <!--

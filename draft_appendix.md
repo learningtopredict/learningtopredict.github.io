@@ -1,6 +1,6 @@
 ## Acknowledgements
 
-Write something here.
+Add list of people to acknowledge here.
 
 The experiments in this work were performed on 96-core CPU Linux virtual machines provided by [Google Cloud Platform](https://cloud.google.com/).
 
@@ -17,7 +17,7 @@ For attribution in academic contexts, please cite this work as
 BibTeX citation
 
 <pre class="citation long">@article{learningtopredict2019,
-  author = {Freeman, C. Daniel and Luke Metz and David Ha},
+  author = {Freeman, C Daniel and Luke Metz and David Ha},
   title  = {Learning to Predict Without Looking Ahead: World Models Without Forward Prediction},
   eprint = {arXiv:XXXX.XXXXX},
   url    = {https://learningtopredict.github.io},
@@ -31,7 +31,7 @@ Please see our [repo](https://github.com/google/brain-tokyo-workshop/) for detai
 
 ## Reuse
 
-Diagrams and text are licensed under Creative Commons Attribution [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/) with the [source available on GitHub](https://github.com/weightagnostic/weightagnostic.github.io), unless noted otherwise. The figures that have been reused from other sources don’t fall under this license and can be recognized by the citations in their caption.
+Diagrams and text are licensed under Creative Commons Attribution [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/) with the [source available on GitHub](https://github.com/learningtopredict/learningtopredict.github.io), unless noted otherwise. The figures that have been reused from other sources don’t fall under this license and can be recognized by the citations in their caption.
 
 ## Supplementary Materials
 
