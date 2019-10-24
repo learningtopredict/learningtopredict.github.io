@@ -166,19 +166,22 @@ dt-article figcaption b {
   description: ""
 </script>
 <body>
+
 <div style="text-align: center;">
 <video class="b-lazy" data-src="assets/mp4/learncartpole5.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;" ></video>
-<table style="width: 100%;"><tr>
-<td width="100%"><figcaption style="text-align: left; margin:1em;">
-Our agents are only given infrequent observation of the real environment. As a side effect for optimizing performance in this setting a “world model” emerges. We show the true dynamics in color, with full saturation denoting frames the policy can see. The black and white outline shows the state of the emergent world model. These world model exhibits similar, but not identical dynamics to forward predictive models but only model “important” aspects of the environment.
-</figcaption></td>
-</tr></table>
-
 </div>
 
 <dt-article id="dtbody">
 
+<div style="text-align: center;">
+<figcaption style="text-align: left;color:#FF6C00;"><br/>Cartpole Swingup with Observational Dropout</figcaption>
+<figcaption style="text-align: left;">
+Our agents are only given infrequent observation of the real environment. As a side effect for optimizing performance in this setting a “world model” emerges. We show the true dynamics in color, with full saturation denoting frames the policy can see. The black and white outline shows the state of the emergent world model. These world model exhibits similar, but not identical dynamics to forward predictive models but only model “important” aspects of the environment.<br/>
+</figcaption>
+</div>
+
 <dt-byline class="l-page transparent"></dt-byline>
+
 <h2>Learning to Predict Without Looking Ahead:<br/>World Models Without Forward Prediction</h2>
 <p></p>
 <dt-byline class="l-page" id="authors_section" hidden>
@@ -206,7 +209,6 @@ Our agents are only given infrequent observation of the real environment. As a s
     <div class="year" style="color: #FF6C00;"><a href="https://arxiv.org/abs/XXXX.XXXXX" target="_blank">PDF</a></div>
   </div>
 </div>
-</dt-byline>
 </dt-byline>
 <h2>Abstract</h2>
 <p>Much of model-based reinforcement learning involves learning a model of an agent's world, and training an agent to leverage this model to perform a task more efficiently. While these models are demonstrably useful for agents, every naturally occurring model of the world of which we are aware--e.g., a brain--arose as the byproduct of competing evolutionary pressures for survival, not minimization of a supervised forward-predictive loss via gradient descent.  That useful models can arise out of the messy and slow optimization process of evolution suggests that forward-predictive modeling can arise as a side-effect of optimization under the right circumstances. Crucially, this optimization process need not explicitly be a forward-predictive loss. In this work, we introduce a modification to traditional reinforcement learning which we call <em>observational dropout</em>, whereby we limit the agents ability to observe the real environment at each timestep. In doing so, we can coerce an agent into <em>learning</em> a world model to fill in the observation gaps during reinforcement learning. We show that the emerged world model, while not explicitly trained to predict the future, can help the agent learn key skills required to perform well in its environment.</p>
