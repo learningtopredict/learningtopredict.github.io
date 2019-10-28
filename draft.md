@@ -62,7 +62,7 @@ When samples from the real world are used, the state of the world model is reset
 To show this, consider an MDP with states $s \in \mathcal{S}$, transition distribution $s^{t+1} \sim P\left(s^{t}, a^{t}\right)$, and reward distribution $R(s^{t}, a, s^{t+1})$ we can create a new partially observed MDP with 2 states, $s' = (s_{orig}, s_{model})$ $\in$ $(\mathcal{S}, \mathcal{S})$, consisting of both the original states, and the internal state produced by the world model. The transition function then switches between the real, and world model states with some probability $p$:
 
 <div style="text-align: center;">
-<img class="b-lazy" src=data:image/png;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/png/paper_eq_1.png" style="display: block; margin: auto; width: 55%;"/>
+<img class="b-lazy" src=data:image/png;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/png/paper_eq_1.png" style="display: block; margin: auto; width: 65%;"/>
 </div>
 
 where $r \sim \text{Uniform}(0, 1)$, $s^{t+1}_{orig}$ is the real environment transition, $s^{t+1}_{orig} \sim P(s^{t}_{orig}, a^{t})$, $s^{t+1}_{model}$ is the next world model transition, $s^{t+1}_{model} \sim M(s^{t}_{model}, a^{t}; \phi)$, $p$ is the peek probability.
