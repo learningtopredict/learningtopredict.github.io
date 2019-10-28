@@ -26,12 +26,92 @@ We hypothesize that explicit forward prediction is not required to learn useful 
 </figcaption>
 </div>
 
-By jointly learning both the policy and model to perform well on the given task, we can directly optimize the model without ever explicitly training it for forward prediction. This allows the model to focus on generating any “predictions” that are useful for the policy to perform well on the task, even if they are not realistic. The models that emerge under our constraints capture the essence of what the agent needs to see from its world. We conduct various experiments to show, under certain conditions, that the models learn to behave like imperfect forward predictors. We demonstrate that these models can be used to generate environments that do not follow the rules that govern the actual environment, but nonetheless can be used to teach the agent important skills needed to perform its task in the actual environment. We also examine the role of inductive biases in the world model, and show that the architecture of the model plays a role in not only its usefulness, but also its interpretability.
+By jointly learning both the policy and model to perform well on the given task, we can directly optimize the model without ever explicitly optimizing for forward prediction. This allows the model to focus on generating any “predictions” that are useful for the policy to perform well on the task, even if they are not realistic. The models that emerge under our constraints capture the essence of what the agent needs to see from the world. We conduct various experiments to show, under certain conditions, that the models learn to behave like imperfect forward predictors. We demonstrate that these models can be used to generate environments that do not follow the rules that govern the actual environment, but nonetheless can be used to teach the agent important skills needed in the actual environment. We also examine the role of inductive biases in the world model, and show that the architecture of the model plays a role in not only in performance, but also interpretability.
 
 ______
 
-## Discussion and Future Work
+## Motivation:<br/>When a random world model is good enough
 
-Remember to cite REINFORCE paper <dt-cite key="williams1992simple"></dt-cite>.
+A common goal when learning a world model is to learn a perfect forward predictor.  In this section, we provide intuitions for why this is not always necessary, and demonstrate how learning on random “world models” can lead to performant policies when transferred to the real world. For simplicity, we consider
+the classical control task of balance cart-pole <dt-cite key="barto1983neuronlike"></dt-cite>.
+While there are many ways of constructing world models for cart-pole, an optimal forward predictive model will have to generate trajectories of solutions to the simple linear differential equation describing the pole's dynamics near the unstable equilibrium point <dt-fn>In general, the full dynamics describing cart-pole is non-linear. However, in the limit of a heavy cart and small perturbations about the vertical at low speeds, it reduces to a linear system. See Appendix for details.</dt-fn>.  One particular coefficient matrix fully describes these dynamics, thus, for this example, we identify this coefficient matrix as the free parameters of the world model, $M$.   
+
+While this unique $M$ perfectly describe the dynamics of the pole, if our objective is only to stabilize the system--*not* achieve perfect forward prediction--it stands to reason that we may not necessarily need to know these exact dynamics.  In fact, if one solves for the linear feedback parameters that stabilize a cart-pole system with coefficient matrix $M'$ (not necessarily equal to $M$), for a wide variety of $M'$, those same linear feedback parameters will also stabilize the “true” dynamics $M$.  Thus one successful, albeit silly strategy for solving balance cart-pole is choosing a random $M'$, finding linear feedback parameters that stabilize this $M'$, and then deploying those same feedback controls to the “real” model $M$.  We provide the details of this procedure in the Appendix.  
+
+Note that the “world model” learned in this way is almost arbitrarily wrong.  It does not produce useful forward predictions, nor does it accurately estimate any of the parameters of the “real” world like the length of the pole, or the mass of the cart.  Nonetheless, it can be used to produce a successful stabilizing policy.  In sum, this toy problem exhibits three interesting qualities:
+
+**1.**&nbsp; That a world model can be learned that produces a valid policy without needing a forward predictive loss.
+
+**2.**&nbsp; That a world model need not itself be forward predictive (at all) to facilitate finding a valid policy.
+
+**3.**&nbsp; That the inductive bias intrinsic to one's world model almost entirely controls the ease of optimization of the final policy.
+
+Unfortunately, most real world environments are not this simple and will not lead to performant policies without ever observing the real world. Nonetheless, the underlying lesson--that a world model can be quite wrong, so long as it is wrong the in the “right” way--will be a recurring theme throughout.
+
+______
+
+## Emergent world models by learning to fill in gaps
+
+
+In the previous section, we outlined a strategy for finding policies without even “seeing” the real world.  In this section, we relax this constraint and allow the agent to periodically switch between real observations and simulated observations generated by a world model.  We call this method *observational dropout*, inspired by <dt-cite key="srivastava2014dropout">dropout</dt-cite>.
+
+Mechanistically, this amounts to a map between a single markov decision process (MDP) into a different MDP with an augmented state space.
+Instead of only optimizing the agent in the real environment, with some probability, at every frame, the agent uses its internal world model to produce an observation of the world conditioned on its previous observation.
+When samples from the real world are used, the state of the world model is reset to the real state--effectively resynchronizing the agent's model to the real world.
+
+To show this, consider an MDP with states $s \in \mathcal{S}$, transition distribution $s^{t+1} \sim P\left(s^{t}, a^{t}\right)$, and reward distribution $R(s^{t}, a, s^{t+1})$ we can create a new partially observed MDP with 2 states, $s' = (s_{orig}, s_{model})$ $\in$ $(\mathcal{S}, \mathcal{S})$, consisting of both the original states, and the internal state produced by the world model. The transition function then switches between the real, and world model states with some probability $p$:
+
+<div style="text-align: center;">
+<img class="b-lazy" src=data:image/png;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/png/paper_eq_1.png" style="display: block; margin: auto; width: 55%;"/>
+</div>
+
+where $r \sim \text{Uniform}(0, 1)$, $s^{t+1}_{orig}$ is the real environment transition, $s^{t+1}_{orig} \sim P(s^{t}_{orig}, a^{t})$, $s^{t+1}_{model}$ is the next world model transition, $s^{t+1}_{model} \sim M(s^{t}_{model}, a^{t}; \phi)$, $p$ is the peek probability.
+
+The observation space of this new partially observed MDP is always the second entry of the state tuple, $s'$.
+As before, we care about performing well on the real environment thus the reward function is the same as the original environment: $R'(s^{t}, a^{t}, s^{t+1}) = R(s^{t}_{orig}, a^{t}, s^{t+1}_{orig})$. Our learning task consists of training an agent, $\pi(s; \theta)$, and the world model, $M(s ,a^{t}; \phi)$ to maximize reward in this augmented MDP. In our work, we parameterize our world model $M$, and our policy $\pi$, as neural networks with parameters $\phi$ and $\theta$ respectively. While it's possible to optimize this objective with any reinforcement learning method <dt-cite key="schulman2015trust,mnih2015human,mnih2016asynchronous,schulman2017proximal"></dt-cite>, we choose to use population based REINFORCE <dt-cite key="williams1992simple"></dt-cite> due to its simplicity and effectiveness at achieving high scores on various tasks <dt-cite key="salimans2017evolution,ha2017evolving,ha2018designrl"></dt-cite>.
+By restricting the observations, we make optimization harder and thus expect worse performance on the underlying task.
+We can use this optimization procedure, however, to drive learning of the world model much in the same way evolution drove our internal world models.
+
+One might worry that a policy with sufficient capacity could extract useful data from a world model, even if that world model's features weren't easily interpretable.  In this limit, our procedure starts looking like a strange sort of recurrent network, where the world model “learns” to extract difficult-to-interpret features (like, e.g., the hidden state of an RNN) from the world state, and then the policy is powerful enough to learn to use these features to make decisions about how to act.  While this is indeed a possibility, in practice, we usually constrain the capacity of the policies we studied to be small enough that this did not occur.  For a counter-example, see the fully connected world model for the grid world tasks described later.
+
+______
+
+## Related Work
+
+One promising reason to learn models of the world is to accelerate learning of policies by training these models.
+These works obtain experience from the real environment, and fit a model directly to this data. 
+Some of the earliest work leverage simple model parameterizations--e.g. learnable parameters for system identification <dt-cite key="pillonetto2014kernel"></dt-cite>.
+Recently, there has been large interest in using more flexible parameterizations in the form of function approximators.
+The earliest work we are aware of that uses feed forward neural networks as predictive models for tasks is <dt-cite key="werbos1987"></dt-cite>. 
+To model time dependence, recurrent neural network were introduced in <dt-cite key="schmidhuber1990making"></dt-cite>. Recently, as our modeling abilities increased, there has been renewed interest in directly modeling pixels <dt-cite key="srivastava2015unsupervised,patraucean2015spatio,kalchbrenner2017video,hafner2018learning"></dt-cite>. <dt-cite key="mathieu2015deep"></dt-cite> modify the loss function used to generate more realistic predictions. <dt-cite key="denton2018stochastic"></dt-cite> propose a stochastic model which learns to predict the next frame in a sequence, whereas <dt-cite key="finn2016unsupervised"></dt-cite> employ a different parameterization involving predicting pixel movement as opposed to directly predicting pixels.
+<dt-cite key="kumar2019videoflow"></dt-cite> employ flow based tractable density models to learn models, and <dt-cite key="ha2018world"></dt-cite> leverages a VAE-RNN architecture to learn an embedding of pixel data across time.
+<dt-cite key="hafner2018learning"></dt-cite> propose to learn a latent space, and learn forward dynamics in this latent space.
+Other methods utilize probabilistic dynamics models which allow for better planning in the face of uncertainty <dt-cite key="deisenroth2011pilco,gal2016improving"></dt-cite>.
+Presaging much of this work is <dt-cite key="silver2017predictron"></dt-cite>, which learns a model that can predict environment state over multiple timescales via imagined rollouts.
+
+As both predictive modeling and control improves there has been a large number of successes leveraging learned predictive models in Atari <dt-cite key="buesing2018learning,kaiser2019model"></dt-cite> and robotics <dt-cite key="ebert2018visual"></dt-cite>. 
+Unlike our work, all of these methods leverage transitions to learn an explicit dynamics model.
+Despite advances in forward predictive modeling, the application of such models is limited to relatively simple domains where models perform well.
+
+Errors in the world model compound, and cause issues when used for control <dt-cite key="talvitie2014model,asadi2018lipschitz"></dt-cite>. <dt-cite key="amos2018differentiable"></dt-cite>, similar to our work, directly optimizes the dynamics model against loss by differentiating through a planning procedure, and <dt-cite key="schmidhuber2015learning"></dt-cite> proposes a similar idea of improving the internal model using an RNN, although the RNN world model is initially trained to perform forward prediction.
+In this work we structure our learning problem so a model of the world will emerge as a result of solving a given task.
+This notion of emergent behavior has been explored in a number of different areas and broadly is called “representation learning” <dt-cite key="bengio2013representation"></dt-cite>.
+Early work on autoencoders leverage reconstruction based losses to learn meaningful features <dt-cite key="hinton2006reducing,le2011building"></dt-cite>.
+Follow up work focuses on learning “disentangled” representations by enforcing more structure in the learning procedure <dt-cite key="higgins2016early,higgins2018towards"></dt-cite>.
+Self supervised approaches construct other learning problems, e.g. solving a jigsaw puzzle <dt-cite key="noroozi2016unsupervised"></dt-cite>, or leveraging temporal structure <dt-cite key="sermanet2018time,oord2018representation"></dt-cite>. Alternative setups, closer to our own specify a specific learning problem and observe that by solving these problems lead to interesting learned behavior (e.g. grid cells) <dt-cite key="cueva2018emergence,banino2018vector"></dt-cite>. In the context of learning models, <dt-cite key="watter2015embed"></dt-cite> construct a locally linear latent space where planning can then be performed.
+
+The force driving model improvement in our work consists of black box optimization. In an effort to emulate nature, evolutionary algorithms where proposed <dt-cite key="holland1975adaptation,goldberg1988genetic,hansen2003reducing,wierstra2008natural,such2017deep"></dt-cite>. These algorithms are robust and will adapt to constraints such as ours while still solving the given task <dt-cite key="bongard2006resilient,lehman2018surprising"></dt-cite>. Recently, reinforcement learning has emerged as a promising framework to tackle optimization leveraging the sequential nature of the world for increased efficiency <dt-cite key="sutton1998introduction,schulman2015trust,mnih2015human,mnih2016asynchronous,schulman2017proximal"></dt-cite>. The exact type of the optimization is of less importance to us in this work and thus we choose to use a simple population-based optimization algorithm <dt-cite key="williams1992simple"></dt-cite> with connections to evolution strategies <dt-cite key="rechenberg1973evolutionsstrategie,schwefel1977numerische,salimans2017evolution"></dt-cite>.
+
+The boundary between what is considered *model-free* and *model-based* reinforcement learning is blurred when one can considers both the model network and controller network together as one giant policy that can be trained end-to-end with model-free methods. <dt-cite key="risi2019"></dt-cite> demonstrates this by training both world model and policy via evolution. <dt-cite key="marques2007sensorless"></dt-cite> explore modifying sensor information similarly to our observational dropout. Instead of performance, however, this work focus on understanding what these models learn and show there usefulness--e.g. training a policy inside the learned models.
+
+______
+
+## Discussion
+
+In this work, we explore world models that emerge when training with *observational dropout* for several reinforcement learning tasks.  In particular, we've demonstrated how effective world models can emerge from the optimization of total reward. Even on these simple environments, the emerged world models do not perfectly model the world, but they facilitate policy learning well enough to solve the studied tasks.
+
+The deficiencies of the world models learned in this way have a consistency: the cart-pole world models learned to swing up the pole, but did not have a perfect notion of equilibrium--the grid world world models could perform reliable bit-shift maps, but only in certain directions--the car racing world model tended to ignore the forward motion of the car, unless a turn was visible to the agent (or imagined).  Crucially, none of these deficiencies were catastrophic enough to cripple the agent's performance.  In fact, these deficiencies were, in some cases, irrelevant to the performance of the policy.  We speculate that the complexity of world models could be greatly reduced if they could fully leverage this idea:  that a complete model of the world is actually unnecessary for most tasks--that by identifying the *important* part of the world, policies could be trained significantly more quickly, or more sample efficiently.
+
+We hope this work stimulates further exploration of both model based and model free reinforcement learning, particularly in areas where learning a perfect world model is intractable.
 
 *If you would like to discuss any issues or give feedback, please visit the [GitHub](https://github.com/learningtopredict/learningtopredict.github.io/issues) repository of this page for more information.*
