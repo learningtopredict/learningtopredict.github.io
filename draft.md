@@ -12,7 +12,7 @@ Much of the motivation of model-based reinforcement learning (RL) derives from t
 <video class="b-lazy" data-src="assets/mp4/learncartpole5.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;" ></video>
 <img class="b-lazy" src=data:image/png;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/png/paper_figure_1.png" style="display: block; margin: auto; width: 100%;"/>
 <figcaption style="text-align: left;">
-Our agent is given only infrequent observations of its environment (e.g., frames 1, 8), and must learn a world model to fill in the observation gaps. The colorless cartpole represents the predicted observations seen by the policy. Under such constraints, we show that forward predictive-like world models can emerge so that the policy can still perform well on a swing-up cartpole environment.<br/>
+Our agent is given only infrequent observations of its environment (e.g., frames 1, 8), and must learn a world model to fill in the observation gaps. The colorless cart-pole represents the predicted observations seen by the policy. Under such constraints, we show that forward predictive-like world models can emerge so that the policy can still perform well on a cart-pole swing up environment.<br/>
 </figcaption>
 </div>
 
@@ -73,6 +73,196 @@ By restricting the observations, we make optimization harder and thus expect wor
 We can use this optimization procedure, however, to drive learning of the world model much in the same way evolution drove our internal world models.
 
 One might worry that a policy with sufficient capacity could extract useful data from a world model, even if that world model's features weren't easily interpretable.  In this limit, our procedure starts looking like a strange sort of recurrent network, where the world model “learns” to extract difficult-to-interpret features (like, e.g., the hidden state of an RNN) from the world state, and then the policy is powerful enough to learn to use these features to make decisions about how to act.  While this is indeed a possibility, in practice, we usually constrain the capacity of the policies we studied to be small enough that this did not occur.  For a counter-example, see the fully connected world model for the grid world tasks described later.
+
+______
+
+## What policies can be learned from world models emerged from observation dropout?
+
+As the balance cart-pole task discussed earlier can be trivially solved with a wide range of parameters for a simple linear policy, we conduct experiments where we apply observational dropout on the more difficult swing up cart-pole--a task that cannot be solved with a linear policy, as it requires the agent to learn two distinct subtasks:
+
+**1.**&nbsp; To add energy to the system when it needs to swing up the pole.
+
+**2.**&nbsp; To remove energy to balance the pole once the pole is close to the unstable, upright equilibrium <dt-cite key="tedrake2009underactuated"></dt-cite>.
+
+Our setup is closely based on the environment described in <dt-cite key="gal2016improving,deepPILCOgithub"></dt-cite>, where the ground truth dynamics of the environment is described as $[\ddot{x}, \ddot{\theta}] = F(x, \theta, \dot{x}, \dot{\theta})$. $F$ is a system of non-linear equations, and the agent is rewarded for getting $x$ close to zero and $cos(\theta)$ close to one.
+
+We can visualize the cart-pole experiment after training our agent inside the cart-pole swing up environment augmented with observational dropout:
+
+<div style="text-align: center;">
+<video class="b-lazy" data-src="assets/mp4/learncartpole5.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;" ></video>
+<img class="b-lazy" src=data:image/png;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/png/paper_figure_1.png" style="display: block; margin: auto; width: 100%;"/>
+<figcaption style="text-align: left;">
+Our agent is given only infrequent observations of its environment (e.g., frames 1, 8), and must learn a world model to fill in the observation gaps. The colorless cart-pole represents the predicted observations seen by the policy. Under such constraints, we show that forward predictive-like world models can emerge so that the policy can still perform well on a cart-pole swing up environment.<br/>
+</figcaption>
+</div>
+
+As a sanity check, we can confirm that the policy that is jointly learned with the world model learns a policy that also works when observational dropout is disabled in the environment:
+
+<div style="text-align: center;">
+<video class="b-lazy" data-src="assets/mp4/controller5.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;" ></video>
+<figcaption style="text-align: left;">
+The policy that is jointly learned with the world model, deployed in the original environment (without observational dropout) where the agent can see the actual observations at each timestep.<br/>
+</figcaption>
+</div>
+
+In the figure below, we report the performance of our agent trained in environments with various peek probabilities, $p$. A result higher than $\sim$ 500 means that the agent is able to swing up and balance the cart-pole most of the time. Interestingly, the agent is still able to solve the task even when on looking at a tenth of the frames ($p=10\%$), and even at a lower $p=5\%$, it solves the task half of the time.
+
+<div style="text-align: center;">
+<img class="b-lazy" src=data:image/svg;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/svg/cartpole_performance.svg" style="display: block; margin: auto; width: 100%;"/>
+<figcaption style="text-align: left;">
+Performance of cart-pole swing up under various observational dropout probabilities, <i>p</i>.  Here, both the policy and world model are learned.<br/>
+</figcaption>
+</div>
+
+To understand the extent to which the policy, $\pi$ relies on the learned world model, $M$, and to probe the dynamics learned world model, we trained a new policy entirely within learned world model and then deployed these policies back to the original environment. The results are shown in the figure below:
+
+<div style="text-align: center;">
+<img class="b-lazy" src=data:image/svg;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/svg/cartpole_dream.svg" style="display: block; margin: auto; width: 100%;"/>
+<figcaption style="text-align: left;">
+Performance of deploying policies trained from scratch inside of the environment generated by the world model, in the actual environment. For each <i>p</i>, the experiment is run 10 times independently (orange). Performance is measured by averaging cumulative scores over 100 rollouts.  Model-based baseline performances learned via a forward-predictive loss are indicated in red, blue.  Note how world models learned when trained under approximately 3-5% observational dropout can be used to train performant policies.<br/>
+</figcaption>
+</div>
+
+Qualitatively, the agent learns to swing up the pole, and balance it for a short period of time when it achieves a mean reward above $\sim$ 300.
+Below this threshold the agent typically swings the pole around continuously, or navigates off the screen.
+We observe that at low peek probabilities, a higher percentage of learned world models can be used to train policies that behave correctly under the actual dynamics, despite failing to completely solve the task.
+At higher peek probabilities, the learned dynamics model is not needed to solve the task thus is never learned.
+
+We have compared our approach to baseline model-based approach where we explicitly train our model to predict the next observation on a dataset collected from training a model-free agent from scratch to solving the task. To our surprise, we find it interesting that our approach can produce models that outperform an explicitly learned model with the same architecture size (120 units) for cart-pole transfer task. This advantage goes away, however, if we scale up the forward predictive model width by 10x.
+
+In the current setup, the world model $M$ is trained as part of the agent's policy, but we would also like to examine whether we can use this model to *generate* the environment it has trained on. To examine the kind of world our model has learned, we attempt to train a policy (from scratch) inside an open loop environment generated by this world model:
+
+<div style="text-align: center;">
+<video class="b-lazy" data-src="assets/mp4/dream5.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;" ></video>
+<figcaption style="text-align: left;">
+In the generated environment, the cart-pole stabilizes at an angle that is not perfectly perpendicular, due to its imperfect nature. The world model that generated this environment is jointly trained with an observational dropout probability of <i>p=5%</i>.<br/>
+</figcaption>
+</div>
+
+The figure above depicts a trajectory of a policy trained entirely within a learned world model deployed on the actual environment.  It is interesting to note that the dynamics in the world model, $M$, are not perfect--for instance, the optimal policy inside the world model can only swing up and balance the pole at an angle that is not perpendicular to the ground.
+We notice in other world models, the optimal policy learns to swing up the pole and only balance it for a short period of time, even in the self-contained world model.
+It should not surprise us then, that the most successful policies when deployed back to the actual environment can swing up and only balance the pole for a short while, before the pole falls down, as visualized in the following figure:
+
+<div style="text-align: center;">
+<video class="b-lazy" data-src="assets/mp4/deploy5.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;" ></video>
+<figcaption style="text-align: left;">
+This policy is still able to swing up the cart-pole in the actual environment, although it remains balanced only for some time before falling down.<br/>
+</figcaption>
+</div>
+
+As noted earlier, the task of stabilizing the pole once it is near its target state (when $x$, $\theta$, $\dot{x}$, $\dot{\theta}$ is near zero) is trivial, hence a policy, $\pi$, jointly trained with world model, $M$, will not require accurate predictions to keep the pole balanced.
+For this subtask, $\pi$ needs only to occasionally observe the actual world and realign its internal observation with reality.
+Conversely, the subtask of swinging the pole upwards and then lowering the velocities is much more challenging, hence $\pi$ will rely on the world model to captures the essence of the dynamics for it to accomplish the subtask.
+The world model $M$ only learns the *difficult* part of the real world, as that is all that is required of it to facilitate the policy performing well on the task.
+
+______
+
+## Examining world models' inductive biases in a grid world
+
+To illustrate the generality of our method to more varied domains, and to further emphasize the role played by inductive bias in our models, we consider an additional problem: a classic search / avoidance task in a grid world.  In this problem, an agent navigates a grid environment with randomly placed apples and fires.  Apples provide reward, and fires provide negative reward.  The agent is allowed to move in the four cardinal directions, or to perform a no-op. For a detailed description of the grid world environment, please refer to the Appendix.
+
+For simplicity, we considered only stateless policies and world models.  While this necessarily limits the expressive capacity of our world models, the optimal forward predictive model within this class of networks is straightforward to consider: movement of the agent essentially corresponds to a bit-shift map on the world model's observation vectors.  For example, for an optimal forward predictor, if an agent moves rightwards, every apple and fire within its receptive field should shift to the left.  The leftmost column of observations shifts out of sight, and is forgotten--as the model is stateless--and the rightmost column of observations should be populated according to some distribution which depends on the locations of apples and fires visible to the agent, as well as the particular scheme used to populate the world with apples and fires. The figure below illustrates the receptive field of the world model:
+
+<div style="text-align: center;">
+<img class="b-lazy" src=data:image/png;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/png/MovementCartoonRobotBetter.png" style="display: block; margin: auto; width: 100%;"/>
+<figcaption style="text-align: left;">
+A cartoon demonstrating the shift of the receptive field of the world model as it moves to the right. The greyed out column indicates the column of forgotten data, and the light blue column indicates the “new” information gleaned from moving to the right. An optimal predictor would learn the distribution function <i>p</i> and sample from it to populate this rightmost column, and would match the ground truth everywhere else. The rightmost heat map illustrates how predictions of a convolutional model correlate with the ground truth (more orange = more predictive) when moving to the right, averaged over 1000 randomized right-moving steps. Crucially, this heat map is most predictive for the cells the agent can actually see, and is less predictive for the cells right outside its field of view (the rightmost column) as expected.<br/>
+</figcaption>
+</div>
+
+This partial observability of the world immediately handicaps the ability of the world model to perform long imagined trajectories in comparison with the previous continuous, fully observed cart-pole tasks.  Nonetheless, there remains sufficient information in the world to train world models via observational dropout that are predictive.
+
+For our numerical experiments we compared two different world model architectures: a fully connected model and a convolutional model (See Appendix for architecture details). Naively, these models are listed in increasing order of inductive bias, but decreasing order of overall capacity ($10650$ parameters for the fully connected model, $1201$ learnable parameters for the convolutional model)--i.e., the fully connected architecture has the highest capacity and the least bias, whereas the convolutional model has the most bias but the least capacity. As in the cart-pole tasks, we trained the agent's policy and world model jointly, where with some probability $p$ the agent sees the ground truth observation instead of predictions from its world model. The performance of these models on the task as a function of peek probability is provided in the figure below:
+
+<div style="text-align: center;">
+<img class="b-lazy" src=data:image/png;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/png/grid_perf.png" style="display: block; margin: auto; width: 100%;"/>
+<figcaption style="text-align: left;">
+Performance, <i>R</i> of the two architectures, empirically averaged over hundred policies and a thousand rollouts as a function of peek probability, <i>p</i>.  The convolutional architecture reliably out performs the fully connected architecture. Error bars indicate standard error. Intuitively, a score near <i>0</i> amounts to random motion on the lattice—encountering apples as often as fires, and <i>2</i> approximately corresponds to encountering apples two to three times more often than fires.  A baseline that is trained on a version of the environment without any fires—i.e., a proxy baseline for an agent that can perfectly avoid fires—reliably achieves a score of <i>3</i>.<br/>
+</figcaption>
+</div>
+
+Curiously, even though the fully connected architecture has the highest overall capacity, and is capable of learning a transition map closer to the “optimal” forward predictive function for this task if taught to do so via supervised learning of a forward-predictive loss, it reliably performs worse than the convolutional architectures on the search and avoidance task. This is not entirely surprising: the convolutional architectures induce a considerably better prior over the space of world models than the fully connected architecture via their translational invariance. It is comparatively much easier for the convolutional architectures to randomly discover the right sort of transition maps.
+
+Because the world model is not being explicitly optimized to achieve forward prediction, it doesn't often learn a predictive function for every direction.  We selected a typical convolutional world model and plot its empirically averaged correlation with the ground truth next-frames in the following figure:
+
+<div style="text-align: center;">
+<img class="b-lazy" src=data:image/png;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/png/near_conv_correlations_one_row.png" style="display: block; margin: auto; width: 100%;"/>
+<figcaption style="text-align: left;">
+Empirically averaged correlation matrices between a world model's output and the ground truth. Averages were calculated using 1,000 random transitions for each direction of a typical convolutional <i>p=75%</i> world model.  Higher correlation (yellow-white) translates to a world model that is closer to a next frame predictor. Note that a predictive map is not learned for every direction. The row and column, respectively of dark pixels for ⬇ and ➡ correspond exactly to the newly-seen pixels for those directions<br/>
+</figcaption>
+</div>
+
+Here, the world model clearly only learns reliable transition maps for moving down and to the right, which is sufficient.
+Qualitatively, we found that the convolutional world models learned with peek-probability close to $p=50\%$ were “best” in that they were more likely to result in accurate transition maps--similar to the cart-pole results indicated earlier.
+
+<div style="text-align: center;">
+<img class="b-lazy" src=data:image/png;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/png/near_conv_correlations_2.png" style="display: block; margin: auto; width: 100%;"/>
+<figcaption style="text-align: left;">
+Correlation matrices for several sampled convolutional architectures. The dark pixel immediately adjacent to the agent in many of the correlation plots is a result of the agent failing to predict its own consumption of an apple, because the model used was translationally invariant.<br/>
+</figcaption>
+</div>
+
+Fully connected world models, on the other hand, reliably learned completely uninterpretable transition maps. That policies could *almost* achieve the same performance with fully connected world models as with convolutional world model is reminiscent of a recurrent architecture that uses the (generally not-easily-interpretable) hidden state as a feature.
+
+<div style="text-align: center;">
+<img class="b-lazy" src=data:image/png;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/png/fc_correlations_2.png" style="display: block; margin: auto; width: 100%;"/>
+<figcaption style="text-align: left;">
+Correlation matrices for several sampled fully connected architectures. Note the lack of interpretability of the learned models, even though the policies learned jointly with these world models were fairly performant.<br/>
+</figcaption>
+</div>
+
+______
+
+## Car Racing: Keep your eyes *off* the road
+
+In more challenging environments, observations are often expressed as high dimensional pixel images rather than state vectors.
+In this experiment, we apply observation dropout to learn a world model of a car racing game from pixel observations. We would like to know to what extent the world model can facilitate the policy at driving if the agent is only allowed to see the road only only a fraction of the time. We are also interested in the representations the model learns to facilitate driving, and in measuring the usefulness of its internal representation for this task.
+
+<div style="text-align: center;">
+<video class="b-lazy" data-src="assets/mp4/learncarracing.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;" ></video>
+<figcaption style="text-align: left;">
+<br/>The above animation illustrates the world model’s prediction on the right versus the ground truth pixel observation on the left. Frames that have a red border frames indicate actual observations from the environment the agent is allowed to see. The policy is acting on the observations (real or generated) on the right.<br/>
+</figcaption>
+</div>
+
+In Car Racing <dt-cite key="carracing_v0"></dt-cite>, the agent's goal is to drive around the tracks, which are randomly generated for each trial, and drive over as many tiles as possibles in the shortest time. At each timestep, the environment provides the agent with a high dimensional pixel image observation, and the agent outputs 3 continuous action parameters that control the car's steering, acceleration, and brakes.
+
+To reduce the dimensionality of the pixel observations, we follow the procedure in <dt-cite key="ha2018world"></dt-cite> and train a Variational Autoencoder (VAE) <dt-cite key="vae,vae_dm"></dt-cite> using on rollouts collected from a random policy, to compress a pixel observation into a small dimensional latent vector $z$. Our agent will use $z$ instead as its observation. Our policy, a feed forward network, will act on actual observations with probability $p$, otherwise on observations produced by the world model. Examples of pixel observations, and reconstructions from their compressed representations are shown in the first 2 rows of the following figure:
+
+<div style="text-align: center;">
+<img class="b-lazy" src=data:image/png;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/png/carracing_demonstration.png" style="display: block; margin: auto; width: 100%;"/>
+<figcaption style="text-align: left;">
+Two examples of action-conditioned predictions from a world model trained at <i>p=10%</i> (bottom rows). Red boxes indicate actual observations from the environment the agent is allowed to see. While the agent is devoid of sight, the world model predicts <b>(1)</b> small movements of the car relative to the track and <b>(2)</b> upcoming turns. Without access to actual observations for many timesteps, it incorrectly predicts a turn in <b>(3)</b> until an actual observation realigns the world model with reality.<br/>
+</figcaption>
+</div>
+
+Our world model, $M$, a small feed forward network with a hidden layer, outputs the change of the mean latent vector $z$, conditioned on the previous observation (actual or predicted) and action taken (i.e $\Delta z = M(z, a)$). We can use the VAE's decoder to visualize the latent vectors produced by $M$, and compare them with the actual observations that the agent is not able to see (See figure above). We observe that our world model, while not explicitly trained to predict future frames, are still able to make meaningful action-conditioned predictions. The model also learns to predict local changes in the car's position relative to the road given the action taken, and also attempts to predict upcoming curves.
+
+Our policy $\pi$ is jointly trained with world model $M$ in the car racing environment augmented with a peek probability $p$. The agent's performance is reported in the figure below:
+
+<div style="text-align: center;">
+<img class="b-lazy" src=data:image/svg;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/svg/carracing_performance.svg" style="display: block; margin: auto; width: 100%;"/>
+<figcaption style="text-align: left;">
+Mean performance of Car Racing under various <i>p</i> over 100 trials.<br/>
+</figcaption>
+</div>
+
+Qualitatively, a score above $\sim$ 800 means that the agent can navigate around the track, making the occasional driving error. We see that the agent is still able to perform the task when 70\% of the actual observation frames are dropped out, and the world model is relied upon to fill in the observation gaps for the policy.
+
+If the world model produces useful predictions for the policy, then its hidden representation used to produce the predictions should also be useful features to facilitate the task at hand.
+We can test whether the hidden units of the world model are directly useful for the task, by first freezing the weights of the world model, and then training from scratch a *linear* policy using only the outputs of the intermediate hidden layer of the world model as the only inputs.
+This feature vector extracted the hidden layer will be mapped directly to the 3 outputs controlling the car, and we can measure the performance of a linear policy using features of world models trained at various peek probabilities.
+
+<div style="text-align: center;">
+<img class="b-lazy" src=data:image/svg;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw== data-src="assets/svg/carracing_dream.svg" style="display: block; margin: auto; width: 100%;"/>
+<figcaption style="text-align: left;">
+Mean performance achieved by training a linear policy using only the outputs of the hidden layer of a world model learned at peek probability <i>p</i>.
+We run 5 independent seeds for each <i>p</i> (orange).
+Model-based baseline performances learned via a forward-predictive loss are indicated in red, blue. We note that in this constrained linear policy setup, our best solution out of a population of trials achieves a performance slightly below reported state-of-the-art results (i.e. <dt-cite key="ha2018world,risi2019"></dt-cite>). As in the swingup cartpole experiments, the best world models for training policies occur at a characteristic peek probability that roughly coincides with the peek probability at which performance begins to degrade for jointly trained models (i.e., the bend in the previous figure occurs near the peak of the this figure).<br/>
+</figcaption>
+</div>
+
+The results reported in the above figure show that world models trained at lower peek probabilities have a higher chance of learning features that are useful enough for a linear controller to achieve an average score of 800. The average performance of the linear controller peaks when using models trained with $p$ around 40%. This suggests that a world model will learn more useful representation when the policy needs to rely more on its predictions as the agent's ability to observe the environment decreases. However, a peek probability too close to zero will hinder the agent's ability to perform its task, especially in non-deterministic environments such as this one, and thus also affect the usefulness of its world model for the real world, as the agent is almost completely disconnected from reality.
 
 ______
 
