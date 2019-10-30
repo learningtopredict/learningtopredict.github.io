@@ -19,7 +19,7 @@ BibTeX citation
 <pre class="citation long">@article{learningtopredict2019,
   author = {Freeman, C Daniel and Luke Metz and David Ha},
   title  = {Learning to Predict Without Looking Ahead: World Models Without Forward Prediction},
-  eprint = {arXiv:XXXX.XXXXX},
+  eprint = {arXiv:1910.13038},
   url    = {https://learningtopredict.github.io},
   note   = "\url{https://learningtopredict.github.io}",
   year   = {2019}
@@ -27,7 +27,7 @@ BibTeX citation
 
 ## Open Source Code
 
-Please see our [repo](https://github.com/google/brain-tokyo-workshop/) for details about the code release.
+Please see our [repo](https://github.com/google/brain-tokyo-workshop/) for details about the code release. (Not yet released, will be there soon!)
 
 ## Reuse
 
@@ -35,4 +35,4 @@ Diagrams and text are licensed under Creative Commons Attribution [CC-BY 4.0](ht
 
 ## Appendix
 
-For further discussion about theoretical parts of the paper (relating to cart-pole), and also the implementation details of the experiments, please refer to the Appendix section in the [pdf](https://arxiv.org/abs/XXXX.XXXXX) version.
+For further discussion about theoretical parts of the paper (relating to cart-pole), and also the implementation details of the experiments, please refer to the Appendix section in the [pdf](https://arxiv.org/abs/1910.13038) version.
