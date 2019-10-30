@@ -12,7 +12,8 @@ Any errors here are our own and do not reflect opinions of our proofreaders and 
 
 For attribution in academic contexts, please cite this work as
 
-<pre class="citation short">C. Daniel Freeman and Luke Metz and David Ha, "Learning to Predict Without Looking Ahead: World Models Without Forward Prediction", 2019.</pre>
+<pre class="citation short">C. Daniel Freeman and Luke Metz and David Ha,<br/>
+"Learning to Predict Without Looking Ahead: World Models Without Forward Prediction", 2019.</pre>
 
 BibTeX citation
 
