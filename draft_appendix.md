@@ -28,7 +28,7 @@ BibTeX citation
 
 ## Open Source Code
 
-Please see our [repo](https://github.com/google/brain-tokyo-workshop/) for details about the code release. (Not yet released, will be there soon!)
+Please see our [repo](https://github.com/google/brain-tokyo-workshop/tree/master/learntopredict) for details about the code release.
 
 ## Reuse
 
